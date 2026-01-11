@@ -27,7 +27,7 @@ spec:
       # will keep trying to resolve the service DNS name until successful.
       - name: init-mydb
         image: busybox # This is a lightweight container image with basic tools
-        command: ['sh', '-c', 'until nslookup vprodb01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for database; sleep 2; done'] # simulates initialization task
+        command: ['sh', '-c', 'until nslookup vprodb.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for database; sleep 2; done'] # simulates initialization task
       - name: init-mcrmq
         image: busybox # This is a lightweight container image with basic tools
         command: ['sh', '-c', 'until nslookup vprormq01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for RabbitMQ; sleep 2; done'] # simulates initialization task
