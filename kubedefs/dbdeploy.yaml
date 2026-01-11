@@ -1,0 +1,41 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vprodb-deployment
+  labels:
+    app: vprodb-jpj
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vprodb-jpj
+  template:
+    metadata:
+      labels:
+        app: vprodb-jpj
+    spec:
+      containers:
+      - name: vprodb
+        image: vprocontainers/vprofiledb
+        volumeMounts: # mounts the volume created below to this path inside the container
+        - name: vprodb-data-joyan # refers to the volume created below
+          mountPath: /var/lib/mysql
+        ports:
+        - name: vprodb-port
+          containerPort: 3306 # MySQL default port in 
+        env:
+        - name: MYSQL_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: app-secret
+              key: db-pass
+      volumes:
+        - name: vprodb-data-joyan # creates a volume wuth this name which claims 
+                                  # the Persistent Volume Claim defined in dbpvc.yaml
+          persistentVolumeClaim:
+            claimName: db-pv-claim # from dbpvc.yaml, the Persistent Volume Claim that we 
+                                   # created in Step #1
+      initContainers:
+      - name: busybox-joyan 
+        image: busybox # This is a lightweight container image with basic tools
+        command: ['rm', '-rf', '/var/lib/mysql/lost+found'] # removes lost+found directory

@@ -1,0 +1,115 @@
+# Docker Compose Configuration for VProfile Application Stack
+# This file orchestrates a multi-container application with the following sequence:
+#
+# SERVICE INITIALIZATION ORDER:
+# 1. vprodb - MySQL database service (dependency for vproapp)
+# 2. vprocache01 - Memcached caching layer
+# 3. vprormq - RabbitMQ message broker
+# 4. vproapp - Java Tomcat application (depends on db, cache, and message queue)
+# 5. vproweb - Nginx web server (frontend, depends on vproapp)
+#
+# NETWORKING FLOW:
+# Client (port 80) --> vproweb (Nginx) --> vproapp (Tomcat:8080) --> vprodb (MySQL:3306)
+#                                       --> vprocache01 (Memcached:11211)
+#                                       --> vprormq (RabbitMQ:5672)
+#
+# VOLUME PERSISTENCE:
+# - vprodbdata: Persists MySQL database files
+# - vproappdata: Persists Tomcat application data and deployments
+#
+# ENVIRONMENT CONFIGURATION:
+# - Database root password must be set before vproapp initialization
+# - RabbitMQ uses default guest credentials (recommend changing in production)
+# - All services communicate via internal Docker network using service names as hostnames
+
+services:
+  # ============================================
+  # DATABASE SERVICE - MySQL
+  # ============================================
+  vprodb:
+    # Build database image from custom Dockerfile
+    build:
+      context: ./Docker-files/db
+    # Use pre-built image from Docker Hub
+    image: joyanjoseph/vprofiledb
+    # Assign container name for easy reference
+    container_name: vprodb
+    # Map port 3306 (MySQL) from container to host
+    ports:
+      - "3306:3306"
+    # Mount persistent volume for database data
+    volumes:
+      - vprodbdata:/var/lib/mysql
+    # Set MySQL root password environment variable
+    environment:
+      - MYSQL_ROOT_PASSWORD=vprodbpass
+
+  # ============================================
+  # CACHING SERVICE - Memcached
+  # ============================================
+  vprocache01:
+    # Pull Memcached image from Docker Hub
+    image: memcached
+    # Assign container name for service discovery
+    container_name: vprocache01
+    # Expose Memcached port 11211
+    ports:
+      - "11211:11211"
+
+  # ============================================
+  # MESSAGE BROKER SERVICE - RabbitMQ
+  # ============================================
+  vprormq:
+    # Pull RabbitMQ image from Docker Hub
+    image: rabbitmq
+    # Assign container name for service discovery
+    container_name: vpromq01
+    # Expose RabbitMQ AMQP port 5672
+    ports:
+      - "5672:5672"
+    # Configure RabbitMQ default credentials
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  # ============================================
+  # APPLICATION SERVICE - Tomcat Java App
+  # ============================================
+  vproapp:
+    # Build application image from custom Dockerfile
+    build:
+      context: ./Docker-files/app
+    # Use pre-built image from Docker Hub
+    image: joyanjoseph/vprofileapp
+    # Assign container name for service discovery
+    container_name: vproapp
+    # Map Tomcat port 8080 from container to host
+    ports:
+      - "8080:8080"
+    # Mount persistent volume for application deployments
+    volumes:
+      - vproappdata:/usr/local/tomcat/webapps/
+
+  # ============================================
+  # WEB SERVER SERVICE - Nginx
+  # ============================================
+  vproweb:
+    # Build web server image from custom Dockerfile
+    build:
+      context: ./Docker-files/web
+    # Use pre-built image from Docker Hub
+    image: joyanjoseph/vprofileweb
+    # Assign container name for service discovery
+    container_name: vproweb
+    # Map HTTP port 80 from container to host
+    ports:
+      - "80:80"
+
+# ============================================
+# NAMED VOLUMES FOR DATA PERSISTENCE
+# ============================================
+volumes:
+  # Volume for MySQL database persistence
+  vprodbdata: {}
+  # Volume for Tomcat application data persistence
+  vproappdata: {}

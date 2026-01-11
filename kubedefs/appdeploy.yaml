@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vproapp
+  labels:
+    app: vproapp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: vproapp
+  template:
+    metadata:
+      labels:
+        app: vproapp
+    spec:
+      containers:
+      - name: vproapp
+        image: vprocontainers/vproapp
+        ports:
+        - name: vproapp-port
+          containerPort: 8080
+      initContainers:
+      # this section is used to create init containers that will wait for backend services to be ready
+      # <Srvice name>.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.loca
+      # will resolve to the full DNS name of the service inside the cluster once ready. The init container
+      # will keep trying to resolve the service DNS name until successful.
+      - name: init-mydb
+        image: busybox # This is a lightweight container image with basic tools
+        command: ['sh', '-c', 'until nslookup vprodb01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for database; sleep 2; done'] # simulates initialization task
+      - name: init-mcrmq
+        image: busybox # This is a lightweight container image with basic tools
+        command: ['sh', '-c', 'until nslookup vprormq01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for RabbitMQ; sleep 2; done'] # simulates initialization task
+      - name: init-memcached
+        image: busybox # This is a lightweight container image with basic tools
+        command: ['sh', '-c', 'until nslookup vprocache01.$(cat /var/run/secrets/kubernetes.io/serviceaccount/namespace).svc.cluster.local; do echo waiting for Memcached; sleep 2; done'] # simulates initialization task
+
